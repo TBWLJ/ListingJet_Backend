@@ -45,7 +45,12 @@ export async function register(req, res, next) {
 
     const link = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
     await sendEmail({ to: email, ...verificationEmail(ownerName, link) });
-    res.status(201).json({ user: publicUser(user), token: signAccessToken(user), business });
+    res.status(201).json({
+      message: "Registration successful. Please verify your email to continue to subscription.",
+      requiresEmailVerification: true,
+      user: publicUser(user),
+      business
+    });
   } catch (error) {
     next(error);
   }
@@ -55,6 +60,7 @@ export async function login(req, res, next) {
   try {
     const user = await User.findOne({ email: req.body.email }).select("+password");
     if (!user || !(await user.comparePassword(req.body.password))) throw new HttpError(401, "Invalid email or password");
+    if (!user.isEmailVerified) throw new HttpError(403, "Please verify your email before logging in");
     user.lastLoginAt = new Date();
     await user.save();
     res.json({ user: publicUser(user), token: signAccessToken(user) });
@@ -74,7 +80,12 @@ export async function verifyEmail(req, res, next) {
     user.verificationToken = undefined;
     user.verificationTokenExpires = undefined;
     await user.save();
-    res.json({ message: "Email verified" });
+    res.json({
+      message: "Email verified. Continue to subscription.",
+      next: "/billing?onboarding=1",
+      user: publicUser(user),
+      token: signAccessToken(user)
+    });
   } catch (error) {
     next(error);
   }

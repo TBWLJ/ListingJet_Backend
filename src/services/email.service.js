@@ -13,8 +13,8 @@ export async function sendEmail({ to, subject, html, text }) {
 export function verificationEmail(name, link) {
   return {
     subject: "Verify your ListingJet account",
-    html: `<p>Hello ${name},</p><p>Verify your account to start publishing campaign pages.</p><p><a href="${link}">Verify email</a></p>`,
-    text: `Hello ${name}, verify your account: ${link}`
+    html: `<p>Hello ${name},</p><p>Verify your account to continue to subscription and activate your ListingJet workspace.</p><p><a href="${link}">Verify email</a></p>`,
+    text: `Hello ${name}, verify your account to continue to subscription: ${link}`
   };
 }
 
