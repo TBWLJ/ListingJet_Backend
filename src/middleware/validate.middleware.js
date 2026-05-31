@@ -1,0 +1,10 @@
+import { HttpError } from "../utils/httpError.js";
+
+export function validate(schema) {
+  return (req, _res, next) => {
+    const parsed = schema.safeParse({ body: req.body, query: req.query, params: req.params });
+    if (!parsed.success) return next(new HttpError(422, "Validation failed", parsed.error.flatten()));
+    req.validated = parsed.data;
+    next();
+  };
+}
