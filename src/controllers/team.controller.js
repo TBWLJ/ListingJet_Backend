@@ -1,7 +1,7 @@
 import User from "../models/User.js";
 import TeamInvite from "../models/TeamInvite.js";
 import { randomToken, hashToken } from "../utils/tokens.js";
-import { sendEmail } from "../services/email.service.js";
+import { sendEmail, teamInviteEmail } from "../services/email.service.js";
 
 export async function team(req, res) {
   const [members, invites] = await Promise.all([
@@ -23,7 +23,7 @@ export async function invite(req, res) {
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   });
   const link = `${process.env.FRONTEND_URL}/register?invite=${token}`;
-  await sendEmail({ to: req.body.email, subject: "Join a ListingJet workspace", text: link, html: `<a href="${link}">Accept invite</a>` });
+  await sendEmail({ to: req.body.email, ...teamInviteEmail(link) });
   res.status(201).json({ invite: inviteDoc });
 }
 

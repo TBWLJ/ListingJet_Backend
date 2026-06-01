@@ -3,7 +3,7 @@ import Business from "../models/Business.js";
 import Subscription from "../models/Subscription.js";
 import { HttpError } from "../utils/httpError.js";
 import { hashToken, randomToken, signAccessToken } from "../utils/tokens.js";
-import { sendEmail, verificationEmail } from "../services/email.service.js";
+import { resetPasswordEmail, sendEmail, signupNotificationEmail, verificationEmail } from "../services/email.service.js";
 import { PLANS, periodEnd } from "../services/subscription.service.js";
 
 export async function register(req, res, next) {
@@ -44,7 +44,15 @@ export async function register(req, res, next) {
     });
 
     const link = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-    await sendEmail({ to: email, ...verificationEmail(ownerName, link) });
+    await Promise.allSettled([
+      sendEmail({ to: email, ...verificationEmail(ownerName, link) }),
+      process.env.ADMIN_SIGNUP_NOTIFICATION_EMAIL
+        ? sendEmail({
+            to: process.env.ADMIN_SIGNUP_NOTIFICATION_EMAIL,
+            ...signupNotificationEmail({ businessName, ownerName, email, phone, industry, country, city })
+          })
+        : Promise.resolve()
+    ]);
     res.status(201).json({
       message: "Registration successful. Please verify your email to continue to subscription.",
       requiresEmailVerification: true,
@@ -100,7 +108,7 @@ export async function forgotPassword(req, res, next) {
       user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
       await user.save();
       const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-      await sendEmail({ to: user.email, subject: "Reset your ListingJet password", text: link, html: `<a href="${link}">Reset password</a>` });
+      await sendEmail({ to: user.email, ...resetPasswordEmail(link) });
     }
     res.json({ message: "If the email exists, a reset link has been sent" });
   } catch (error) {
