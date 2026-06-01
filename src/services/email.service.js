@@ -184,7 +184,7 @@ function renderEmail({ eyebrow, title, intro, body = "", buttonLabel, buttonUrl,
             </tr>
             <tr>
               <td style="padding:22px 32px;background:#f8fafc;border-top:1px solid ${BRAND.border};">
-                <p style="margin:0;color:${BRAND.muted};font-size:12px;line-height:20px;">Upload Once. Market Everywhere. Track Every Lead.</p>
+                <p style="margin:0;color:${BRAND.muted};font-size:12px;line-height:20px;">Upload Once. Market Everywhere. Generate More Leads.</p>
                 <p style="margin:8px 0 0;color:${BRAND.muted};font-size:12px;line-height:20px;">ListingJet helps businesses create campaign pages, capture leads, and prove performance.</p>
               </td>
             </tr>
