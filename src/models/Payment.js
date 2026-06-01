@@ -10,7 +10,7 @@ const paymentSchema = new mongoose.Schema(
     plan: String,
     billingCycle: String,
     status: { type: String, enum: ["pending", "success", "failed"], default: "pending" },
-    provider: { type: String, default: "paystack" },
+    provider: { type: String, default: "finswitz" },
     providerResponse: mongoose.Schema.Types.Mixed,
     paidAt: Date
   },

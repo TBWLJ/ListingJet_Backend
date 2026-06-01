@@ -8,8 +8,8 @@ const subscriptionSchema = new mongoose.Schema(
     status: { type: String, enum: ["trialing", "active", "past_due", "cancelled", "expired"], default: "trialing" },
     currentPeriodStart: Date,
     currentPeriodEnd: Date,
-    paystackCustomerCode: String,
-    paystackSubscriptionCode: String,
+    providerCustomerId: String,
+    providerSubscriptionId: String,
     limits: {
       activeListings: { type: Number, default: 50 },
       teamMembers: { type: Number, default: 1 },

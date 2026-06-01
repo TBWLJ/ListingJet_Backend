@@ -1,13 +1,39 @@
-import { createMailer } from "../config/mailer.js";
+import axios from "axios";
+
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 export async function sendEmail({ to, subject, html, text }) {
-  const transporter = createMailer();
-  const from = process.env.EMAIL_FROM || "ListingJet <hello@listingjet.local>";
-  if (!transporter) {
-    console.log("Email skipped:", { to, subject, text });
-    return;
+  try {
+    if (!process.env.BREVO_API_KEY) {
+      console.log("Email skipped: BREVO_API_KEY is not configured", { to, subject });
+      return null;
+    }
+
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || "no-reply@listingjet.com";
+    const senderName = process.env.BREVO_SENDER_NAME || "ListingJet";
+    const response = await axios.post(
+      BREVO_API_URL,
+      {
+        sender: { email: senderEmail, name: senderName },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text
+      },
+      {
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        }
+      }
+    );
+
+    return response.data;
+  } catch (err) {
+    console.error("Error sending email:", err.response?.data || err.message);
+    return null;
   }
-  await transporter.sendMail({ from, to, subject, html, text });
 }
 
 export function verificationEmail(name, link) {

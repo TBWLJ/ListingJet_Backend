@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import Subscription from "../models/Subscription.js";
 import Payment from "../models/Payment.js";
-import { initializePaystack, verifyPaystack } from "../services/paystack.service.js";
+import { initializeSubscriptionPayment, verifySubscriptionPayment } from "../services/payment.service.js";
 import { getPlan, periodEnd, PLANS } from "../services/subscription.service.js";
 import { HttpError } from "../utils/httpError.js";
 
@@ -23,16 +23,28 @@ export async function subscribe(req, res, next) {
       business: req.user.business,
       reference,
       amount: selected.amount,
+      currency: "NGN",
       plan: selected.plan,
-      billingCycle: selected.billingCycle
+      billingCycle: selected.billingCycle,
+      provider: "finswitz"
     });
-    const init = await initializePaystack({
+    const init = await initializeSubscriptionPayment({
       email: req.user.email,
       amount: selected.amount,
+      currency: "NGN",
       reference,
-      metadata: { business: req.user.business.toString(), plan: selected.plan, billingCycle: selected.billingCycle }
+      metadata: {
+        title: `${selected.name} ${selected.billingCycle} subscription`,
+        business: req.user.business.toString(),
+        plan: selected.plan,
+        billingCycle: selected.billingCycle,
+        paymentId: payment._id.toString()
+      }
     });
-    res.status(201).json({ payment, authorizationUrl: init.authorization_url, accessCode: init.access_code, reference });
+    payment.reference = init.reference || reference;
+    payment.providerResponse = init.raw;
+    await payment.save();
+    res.status(201).json({ payment, authorizationUrl: init.authorizationUrl, reference: payment.reference });
   } catch (error) {
     next(error);
   }
@@ -43,26 +55,9 @@ export async function verify(req, res, next) {
     const { reference } = req.body;
     const payment = await Payment.findOne({ reference, business: req.user.business });
     if (!payment) throw new HttpError(404, "Payment not found");
-    const result = await verifyPaystack(reference);
+    const result = await verifySubscriptionPayment(reference);
     if (result.status !== "success") throw new HttpError(400, "Payment not successful");
-    const selected = getPlan(payment.plan, payment.billingCycle);
-    const subscription = await Subscription.findOneAndUpdate(
-      { business: req.user.business },
-      {
-        plan: payment.plan,
-        billingCycle: payment.billingCycle,
-        status: "active",
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: periodEnd(payment.billingCycle),
-        limits: selected.limits
-      },
-      { new: true, upsert: true }
-    );
-    payment.status = "success";
-    payment.paidAt = new Date();
-    payment.subscription = subscription._id;
-    payment.providerResponse = result;
-    await payment.save();
+    const { subscription } = await activatePayment(payment, result);
     res.json({ payment, subscription });
   } catch (error) {
     next(error);
@@ -76,4 +71,30 @@ export async function cancel(req, res) {
     { new: true }
   );
   res.json({ subscription });
+}
+
+export async function activatePayment(payment, providerResponse = {}) {
+  const selected = getPlan(payment.plan, payment.billingCycle);
+  if (!selected) throw new HttpError(400, "Invalid payment plan");
+
+  const subscription = await Subscription.findOneAndUpdate(
+    { business: payment.business },
+    {
+      plan: payment.plan,
+      billingCycle: payment.billingCycle,
+      status: "active",
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: periodEnd(payment.billingCycle),
+      limits: selected.limits
+    },
+    { new: true, upsert: true }
+  );
+
+  payment.status = "success";
+  payment.paidAt = payment.paidAt || new Date();
+  payment.subscription = subscription._id;
+  payment.providerResponse = providerResponse;
+  await payment.save();
+
+  return { payment, subscription };
 }
